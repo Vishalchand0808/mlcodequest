@@ -9,6 +9,17 @@ const cors = require('cors');
 
 // Import the 'vm' module for running code in a sandbox
 const vm = require('vm');
+// Import the Firebase Admin SDK
+const admin = require('firebase-admin');
+// Import your service account key for Firebase
+const serviceAccount = require('./serviceAccountKey.json');
+
+// Initialize Firebase Admin SDK
+admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount)
+});
+// Get a reference to the Firestore database
+const db = admin.firestore();
 
 // 2. INITIALIZE THE APP
 // =====================
@@ -49,9 +60,13 @@ app.get('/api/problems', (req, res) => {
 });
 
 // API endpoint for code execution
-app.post('/api/execute', (req, res) => {
-    // Get the user's code and the problem ID from the request body
-    const { code, problemId } = req.body;
+app.post('/api/execute', async (req, res) => { // Make the function async
+    // Receive the userId along with the code and problemId
+    const { code, problemId, userId } = req.body;
+
+    if(!userId) {
+        return res.status(400).json({ message: "User not authenticated." });
+    }
 
     // For now, we only have logic for the "Two Sum" problem (id: 1)
     if(problemId !== 1) {
@@ -88,6 +103,15 @@ app.post('/api/execute', (req, res) => {
         const isCorrect = userResult && userResult.length === 2 && userResult.includes(0) && userResult.includes(1);
 
         if (isCorrect) {
+            // If the solution is correct, save it to Firestore
+            const submission = {
+                userId: userId,
+                problemId: problemId,
+                code: code,
+                status: 'Accepted',
+                submittedAt: admin.firestore.FieldValue.serverTimestamp() // use server time
+            };
+            await db.collection('submissions').add(submission);
             res.json({success: true, message: "Accepted" });
         } else {
             res.json({ success: false, message: "Wrong Answer", output: userResult });
@@ -95,6 +119,39 @@ app.post('/api/execute', (req, res) => {
     } catch (error) {
         // If the user's code has a syntax error or runtime error, it will be caught here.
         res.json({ success: false, message: "Error", error: error.toString() });
+    }
+});
+
+// API endpoint to get user submission history for a user and problem
+app.get('/api/submissions/:userId/:problemId', async (req, res) => {
+    try {
+        const { userId, problemId } = req.params;
+
+        // Create a query to find all documents matching the userId and problemId
+        const submissionRef = db.collection('submissions');
+        const snapshot = await submissionRef
+            .where('userId', '==', userId)
+            .where('problemId', '==', Number(problemId)) // Ensure problemId is a number
+            .orderBy('submittedAt', 'desc') // Order by newest first
+            .get();
+        
+        if (snapshot.empty) {
+            return res.json([]); // Return an empty array if no submissions found
+        }
+
+        // Map over the documents and create an array of submission data
+        const submissions = [];
+        snapshot.forEach(doc => {
+            submissions.push({
+                id: doc.id,
+                ...doc.data(),
+            });
+        });
+
+        res.json(submissions);
+    } catch (error) {
+        console.error("Failed to fetch submissions:", error);
+        res.status(500).json({ message: "Failed to fetch submissions history." });
     }
 });
 

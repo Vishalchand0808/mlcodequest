@@ -1,5 +1,7 @@
 // src/components/Navbar.jsx
 import React from 'react';
+import { auth } from '../firebase.js';
+import { signOut } from "firebase/auth";
 
 const CodeIcon = () => (
     <svg className="h-8 w-8 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -7,7 +9,18 @@ const CodeIcon = () => (
     </svg>
 );
 
-function Navbar() {
+function Navbar({ user, onNavigate }) {
+
+  // Handle Logout
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      // onAuthStateChanged in App.jsx will handle these state updates
+    } catch (error) {
+      console.error("Error signing out:", error);
+    }
+  };
+
   return (
     <nav className="bg-white shadow-md">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -25,7 +38,22 @@ function Navbar() {
             </div>
           </div>
           <div className="hidden md:block">
-              <a href="#" className="text-gray-500 hover:text-gray-700">Login</a>
+            {/* Conditional rendering for the right side of the navbar */}
+            {user ? (
+              <div className="flex items-center space-x-4">
+                <span className="text-gray-700">{user.email}</span>
+                <button 
+                  onClick={handleLogout} 
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  Logout
+                </button>
+              </div>
+            ) : (
+              // The login link is no longer needed since the page shows automatically
+              // We can leave this empty or add a "Login" text for visual consistency
+              <span className="text-gray-500">Login</span>
+            )}
           </div>
         </div>
       </div>

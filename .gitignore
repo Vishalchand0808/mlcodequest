@@ -21,3 +21,6 @@ pnpm-debug.log*
 # IDE config
 .vscode/
 .idea/
+
+# Firebase Admin SDK Key
+/backend/serviceAccountKey.json
