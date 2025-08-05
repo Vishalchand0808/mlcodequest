@@ -27,7 +27,8 @@ const db = admin.firestore();
 const app = express();
 // We define the port our server will run on. It's convention to use a different port
 // from the frontend. Since Vite often uses 5173, we'll use 5000 for the backend.
-const PORT = 5000;
+// const PORT = 5000;
+const PORT = process.env.PORT || 5000; // Use environment variable or default to 5000
 
 // 3. SET UP MIDDLEWARE
 // ====================
