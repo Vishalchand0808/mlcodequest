@@ -160,6 +160,6 @@ app.get('/api/submissions/:userId/:problemId', async (req, res) => {
 // ===================
 // This command starts the server and makes it listen for incoming requests on our defined PORT.
 // The callback function is just to let us know in the console that the server has started successfully.
-app.listen(PORT, () => {
-    console.log(`✅ Backend server is running on http://localhost:${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`✅ Backend server is running on port: ${PORT}`);
 });
