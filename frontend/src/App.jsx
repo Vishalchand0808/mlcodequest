@@ -23,7 +23,7 @@ function App() {
     const fetchProblems = async () => {
       try {
         // We use fetch to make a GET request to our backend API
-        const response = await fetch("http://localhost:5000/api/problems");
+        const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/problems`);
         // we convert the response into JSON format.
         const data = await response.json();
         // We update our 'problems' state with the data from the server

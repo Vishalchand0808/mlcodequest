@@ -21,7 +21,7 @@ function ProblemDetail({ problem, onBack, user }) {
             if (!user || !problem) return;
 
             try {
-                const response = await fetch(`http://localhost:5000/api/submissions/${user.uid}/${problem.id}`);
+                const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/submissions/${user.uid}/${problem.id}`);
                 const data = await response.json();
                 setSubmissions(data);
             } catch (error) {
@@ -46,7 +46,7 @@ function ProblemDetail({ problem, onBack, user }) {
 
         try {
             // Send a POST request to our execution endpoint
-            const response = await fetch('http://localhost:5000/api/execute', {
+            const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/execute`, {
                 method: 'POST',
                 headers: {
                 'Content-Type': 'application/json',
