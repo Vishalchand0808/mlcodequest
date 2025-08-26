@@ -34,6 +34,10 @@ function Navbar({ user, onNavigate }) {
                 <a href="#" className="bg-gray-900 text-white px-3 py-2 rounded-md text-sm font-medium">Problems</a>
                 <a href="#" className="text-gray-500 hover:bg-gray-700 hover:text-white px-3 py-2 rounded-md text-sm font-medium">Contest</a>
                 <a href="#" className="text-gray-500 hover:bg-gray-700 hover:text-white px-3 py-2 rounded-md text-sm font-medium">Discuss</a>
+                {/* Conditionally render the Admin link */}
+                {user && user.profile?.role === 'admin' && (
+                  <a href="#" onClick={() => onNavigate('admin')} className="text-gray-500 hover:bg-gray-700 hover:text-white px-3 py-2 rounded-md text-sm font-medium">Admin</a>
+                )}
               </div>
             </div>
           </div>
@@ -41,7 +45,7 @@ function Navbar({ user, onNavigate }) {
             {/* Conditional rendering for the right side of the navbar */}
             {user ? (
               <div className="flex items-center space-x-4">
-                <span className="text-gray-700">{user.email}</span>
+                <span className="text-gray-700">{user.auth.email}</span>
                 <button 
                   onClick={handleLogout} 
                   className="text-gray-500 hover:text-gray-700"

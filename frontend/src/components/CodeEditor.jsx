@@ -1,26 +1,47 @@
 // src/components/CodeEditor.jsx
 
 import React from 'react';
-import Editor from '@monaco-editor/react';
+import CodeMirror from '@uiw/react-codemirror';
 
-// It accepts "value" and "onChange"
-function CodeEditor({ value, onChange }) {
-    // The handler that will be called whenever the code changes.
-    const handleEditorChange = (value) => {
-        onChange(value);
-    };
+// Import the language extensions we need
+import { javascript } from '@codemirror/lang-javascript';
+import { python } from '@codemirror/lang-python';
+import { cpp } from '@codemirror/lang-cpp';
 
-    return (
-        <div className="bg-gray-900 rounded-lg overflow-hidden">
-        <Editor
-            height="60vh" // Set a height for the editor
-            theme="vs-dark" // Use a dark theme
-            defaultLanguage="javascript" // Set the default language
-            value={value} // The current value of the editor
-            onChange={handleEditorChange} // The function to call on change
-        />
-        </div>
-    );
+// Import a theme. There are many available.
+import { vscodeDark } from '@uiw/codemirror-theme-vscode';
+
+// A map to easily select the language extension
+const languageMap = {
+  javascript: [javascript({ jsx: true })],
+  python: [python()],
+  cpp: [cpp()],
+};
+
+function CodeEditor({ value, onChange, language }) {
+  // The onChange handler for CodeMirror provides the value directly
+  const handleChange = (newValue) => {
+    onChange(newValue);
+  };
+
+  return (
+    <div className="border border-gray-700 rounded-lg overflow-hidden">
+      <CodeMirror
+        value={value}
+        height="400px"
+        theme={vscodeDark}
+        // Select the correct language extension from our map
+        extensions={languageMap[language]}
+        onChange={handleChange}
+        basicSetup={{
+          foldGutter: true,
+          dropCursor: true,
+          allowMultipleSelections: true,
+          indentOnInput: true,
+        }}
+      />
+    </div>
+  );
 }
 
 export default CodeEditor;

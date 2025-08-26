@@ -1,165 +1,234 @@
 // server.js
 
-// 1. IMPORT LIBRARIES
-// =====================
-// We import the 'express' framework to create and manage our server.
-// We import 'cors' to handle Cross-Origin Resource Sharing, allowing our frontend to access this backend.
+// 1. Configure environment variables
+require('dotenv').config();
+
 const express = require('express');
 const cors = require('cors');
-
-// Import the 'vm' module for running code in a sandbox
-const vm = require('vm');
-// Import the Firebase Admin SDK
 const admin = require('firebase-admin');
-// Import your service account key for Firebase
+const axios = require('axios');
+
 const serviceAccount = require('./serviceAccountKey.json');
 
-// Initialize Firebase Admin SDK
 admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount)
+  credential: admin.credential.cert(serviceAccount)
 });
-// Get a reference to the Firestore database
+
 const db = admin.firestore();
-
-// 2. INITIALIZE THE APP
-// =====================
-// We create an instance of an Express application.
 const app = express();
-// We define the port our server will run on. It's convention to use a different port
-// from the frontend. Since Vite often uses 5173, we'll use 5000 for the backend.
-// const PORT = 5000;
-const PORT = process.env.PORT || 5000; // Use environment variable or default to 5000
+const PORT = process.env.PORT || 5000;
 
-// 3. SET UP MIDDLEWARE
-// ====================
-// Middleware are functions that run between the request and the response.
-// app.use(cors()) tells our server to allow requests from any origin.
 app.use(cors());
-// app.use(express.json()) allows our server to understand incoming requests that are in JSON format.
 app.use(express.json());
 
-// 4. DEFINE THE DATA (Mock Database)
-// ==================================
-// In a real app, this would come from a database like Firestore or MongoDB.
-// For now, we'll store our problem data right here in an array.
-// This is the same data from our App.jsx, now living on the server.
-const problems = [
-    { id: 1, title: '1. Two Sum', acceptance: '48.5%', difficulty: 'Easy', description: 'Given an array of integers nums and an integer target, return indices of the two numbers such that they add up to target.', starterCode: 'function twoSum(nums, target) {\n  // Write your code here\n};' },
-    { id: 2, title: '2. Add Two Numbers', acceptance: '35.7%', difficulty: 'Medium', description: 'You are given two non-empty linked lists representing two non-negative integers...', starterCode: 'function addTwoNumbers(l1, l2) {\n  // Write your code here\n};' },
-    { id: 3, title: '3. Longest Substring...', acceptance: '32.1%', difficulty: 'Hard', description: 'Given a string s, find the length of the longest substring without repeating characters.', starterCode: 'function lengthOfLongestSubstring(s) {\n  // Write your code here\n};' },
-];
+// Helper function to pause execution
+const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
+// Piston API language versions and boilerplates
+const pistonConfig = {
+  python: {
+    language: "python",
+    version: "*",
+    boilerplate: `
+import sys
+import json
 
-// 5. DEFINE API ROUTES
-// ====================
-// A "route" is a specific URL on our server that the frontend can connect to.
-// We're creating a GET route at the URL '/api/problems'.
-app.get('/api/problems', (req, res) => {
-    // When a GET request is made to this URL, we send back our 'problems' array.
-    // res.json() automatically converts our JavaScript array into JSON format for the response.
-    res.json(problems);
+# {{USER_CODE}}
+
+# Driver code - DO NOT EDIT
+try:
+    nums_arg = sys.argv[1]
+    target_arg = sys.argv[2]
+    
+    nums = json.loads(nums_arg)
+    target = int(target_arg)
+
+    solution = Solution()
+    # THE FIX IS HERE: We capture the return value and then print it.
+    result = solution.twoSum(nums, target)
+    
+    # We still sort for consistency before printing.
+    if isinstance(result, list):
+        result.sort()
+    
+    print(json.dumps(result, separators=(',', ':')))
+except Exception as e:
+    print(f"Error during execution: {e}", file=sys.stderr)
+`
+  },
+  // ... other languages
+};
+
+// --- API Routes ---
+
+// Get all problems from Firestore
+app.get('/api/problems', async (req, res) => {
+  try {
+    const problemsRef = db.collection('problems');
+    const snapshot = await problemsRef.orderBy('order', 'asc').get();
+    const problemsList = [];
+    snapshot.forEach(doc => {
+      problemsList.push({ id: doc.id, ...doc.data() });
+    });
+    res.json(problemsList);
+  } catch (error) {
+    console.error("Failed to fetch problems:", error);
+    res.status(500).json({ message: "Failed to fetch problems." });
+  }
 });
 
-// API endpoint for code execution
-app.post('/api/execute', async (req, res) => { // Make the function async
-    // Receive the userId along with the code and problemId
-    const { code, problemId, userId } = req.body;
 
-    if(!userId) {
-        return res.status(400).json({ message: "User not authenticated." });
+// Execute code using the Piston API with Boilerplates
+// ===================================================================
+app.post('/api/execute', async (req, res) => {
+  const { code, language, problemId, userId } = req.body;
+  if (!userId || !pistonConfig[language]) {
+    return res.status(401).json({ message: "Invalid request." });
+  }
+
+  try {
+    const problemDoc = await db.collection('problems').doc(problemId).get();
+    if (!problemDoc.exists) {
+      return res.status(404).json({ message: "Problem not found." });
     }
+    const { testCases } = problemDoc.data();
 
-    // For now, we only have logic for the "Two Sum" problem (id: 1)
-    if(problemId !== 1) {
-        return res.status(400).json({ message: "Execution logic for this problem is not yet implemented." });
-    }
+    for (const testCase of testCases) {
+      let fullCode = code;
+      if (pistonConfig[language].boilerplate) {
+        fullCode = pistonConfig[language].boilerplate.replace('# {{USER_CODE}}', code);
+      }
+      
+      const inputArgs = testCase.input.split('\\n');
 
-    try {
-        // Create a sandbox environment for the code to run in.
-        // We can pass variables into the sandbox. Here, we'll capture the output.
-        const sandbox = {
-            result: null,
-            console: {
-                log: (...args) => {
-                    // We can capture console.log if needed, but for now we'll just store the function's return value.
-                }
-            }
+      const response = await axios.post('https://emkc.org/api/v2/piston/execute', {
+        language: pistonConfig[language].language,
+        version: pistonConfig[language].version,
+        files: [{ content: fullCode }],
+        args: inputArgs
+      });
+
+      const result = response.data;
+      
+      if (result.run.code !== 0) {
+          return res.json({ success: false, message: "Runtime Error", output: result.run.stderr });
+      }
+
+      const userOutput = result.run.stdout.trim();
+      const expectedOutput = testCase.output.trim();
+      
+      let isCorrect = false;
+      try {
+        // Try to parse both outputs as JSON arrays
+        const userArr = JSON.parse(userOutput).sort();
+        const expectedArr = JSON.parse(expectedOutput).sort();
+        // Compare the sorted string versions
+        if (JSON.stringify(userArr) === JSON.stringify(expectedArr)) {
+          isCorrect = true;
         }
-
-        // The code to run inside the sandbox
-        // We append a line to the user's code to call their function with our test case
-        // and store the output in our sandbox's 'result' variable.
-        const testCode = code + '\nresult = twoSum([2, 7, 11, 15], 9);';
-
-        // Use vm.runInNewContext to execute the code safely.
-        // It runs the code in the 'sandbox' environment.
-        vm.runInNewContext(testCode, sandbox);
-
-        // Check the result from the sandbox
-        const userResult = sandbox.result;
-        const expectedResult = [0, 1];
-
-        // A simple check for the 'Two Sum' problem.
-        // We check if the arrays are equal, ignoring the order of elements.
-        const isCorrect = userResult && userResult.length === 2 && userResult.includes(0) && userResult.includes(1);
-
-        if (isCorrect) {
-            // If the solution is correct, save it to Firestore
-            const submission = {
-                userId: userId,
-                problemId: problemId,
-                code: code,
-                status: 'Accepted',
-                submittedAt: admin.firestore.FieldValue.serverTimestamp() // use server time
-            };
-            await db.collection('submissions').add(submission);
-            res.json({success: true, message: "Accepted" });
-        } else {
-            res.json({ success: false, message: "Wrong Answer", output: userResult });
+      } catch (e) {
+        // If they are not valid JSON arrays, fall back to simple string comparison
+        if (userOutput === expectedOutput) {
+          isCorrect = true;
         }
-    } catch (error) {
-        // If the user's code has a syntax error or runtime error, it will be caught here.
-        res.json({ success: false, message: "Error", error: error.toString() });
+      }
+      
+      if (!isCorrect) {
+          return res.json({ 
+              success: false, 
+              message: "Wrong Answer", 
+              details: `For input:\n${testCase.input.replace(/\\n/g, ' ')}\n\nExpected output:\n${expectedOutput}\n\nYour output:\n${userOutput}\n\nError Log (stderr):\n${result.run.stderr || 'None'}`
+          });
+      }
     }
+
+    const submission = { userId, problemId, code, language, status: 'Accepted', submittedAt: admin.firestore.FieldValue.serverTimestamp() };
+    await db.collection('submissions').add(submission);
+    res.json({ success: true, message: "Accepted" });
+
+  } catch (error) {
+    console.error("Execution error:", error.response ? error.response.data : error.message);
+    res.status(500).json({ message: "An error occurred during code execution." });
+  }
 });
 
-// API endpoint to get user submission history for a user and problem
+// API endpoint to get user submission history
 app.get('/api/submissions/:userId/:problemId', async (req, res) => {
     try {
         const { userId, problemId } = req.params;
-
-        // Create a query to find all documents matching the userId and problemId
-        const submissionRef = db.collection('submissions');
-        const snapshot = await submissionRef
+        const submissionsRef = db.collection('submissions');
+        const snapshot = await submissionsRef
             .where('userId', '==', userId)
-            .where('problemId', '==', Number(problemId)) // Ensure problemId is a number
-            .orderBy('submittedAt', 'desc') // Order by newest first
+            .where('problemId', '==', problemId) // Firestore can compare string IDs
+            .orderBy('submittedAt', 'desc')
             .get();
-        
         if (snapshot.empty) {
-            return res.json([]); // Return an empty array if no submissions found
+            return res.json([]);
         }
-
-        // Map over the documents and create an array of submission data
         const submissions = [];
         snapshot.forEach(doc => {
-            submissions.push({
-                id: doc.id,
-                ...doc.data(),
-            });
+            submissions.push({ id: doc.id, ...doc.data() });
         });
-
         res.json(submissions);
     } catch (error) {
         console.error("Failed to fetch submissions:", error);
-        res.status(500).json({ message: "Failed to fetch submissions history." });
+        res.status(500).json({ message: "Failed to fetch submission history." });
     }
 });
 
-// 6. START THE SERVER
-// ===================
-// This command starts the server and makes it listen for incoming requests on our defined PORT.
-// The callback function is just to let us know in the console that the server has started successfully.
+// Protected endpoint for admins to add new problems
+app.post('/api/problems', async (req, res) => {
+  try {
+    const idToken = req.headers.authorization?.split('Bearer ')[1];
+    if (!idToken) {
+      return res.status(401).json({ message: 'Unauthorized: No token provided.' });
+    }
+    const decodedToken = await admin.auth().verifyIdToken(idToken);
+    const uid = decodedToken.uid;
+    const userDocRef = db.collection('users').doc(uid);
+    const userDoc = await userDocRef.get();
+    if (!userDoc.exists || userDoc.data().role !== 'admin') {
+      return res.status(403).json({ message: 'Forbidden: User is not an admin.' });
+    }
+
+// The problem data from the frontend (no longer contains 'order')
+    const problemData = req.body;
+    if (!problemData.title || !problemData.description) {
+        return res.status(400).json({ message: 'Missing required fields.' });
+    }
+
+    // --- NEW: Transaction to get and increment the counter ---
+    const counterRef = db.collection('metadata').doc('problemCounter');
+    
+    const newProblemOrder = await db.runTransaction(async (transaction) => {
+      const counterDoc = await transaction.get(counterRef);
+      if (!counterDoc.exists) {
+        throw new Error("Problem counter document does not exist!");
+      }
+      
+      const newOrder = counterDoc.data().count + 1;
+      
+      // Increment the count in the counter document
+      transaction.update(counterRef, { count: newOrder });
+      
+      return newOrder;
+    });
+    // --- End of Transaction ---
+
+    // Add the auto-generated order to the new problem data
+    const newProblem = {
+      ...problemData,
+      order: newProblemOrder,
+    };
+    
+    const docRef = await db.collection('problems').add(newProblem);
+    res.status(201).json({ message: 'Problem added successfully', id: docRef.id });
+  } catch (error) {
+    console.error("Error adding problem:", error);
+    res.status(500).json({ message: 'Failed to add problem.' });
+  }
+});
+
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`✅ Backend server is running on port: ${PORT}`);
 });

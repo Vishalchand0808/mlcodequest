@@ -2,17 +2,28 @@
 
 import React, { useState, useEffect } from 'react';
 import CodeEditor from "./CodeEditor.jsx";
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 function ProblemDetail({ problem, onBack, user }) {
+    // State for the selected language
+    const [language, setLanguage] = useState('javascript');
     // Create state to hold the user's code.
     // Initialize it with the problem's starter code.
-    const [code, setCode] = useState(problem.starterCode);
+    const [code, setCode] = useState(problem.starterCode.javascript);
 
     // State to hold the submission result
     const [result, setResult] = useState(null);
 
     // Add state to store the submission history
     const [submissions, setSubmissions] = useState([]);
+
+    // When the user changes the language in the dropdown...
+    const handleLanguageChange = (newLanguage) => {
+        setLanguage(newLanguage);
+        // ...update the editor with the starter code for that language.
+        setCode(problem.starterCode[newLanguage]);
+    };
 
     // useEffect to fetch submission history when the component loads
     useEffect(() => {
@@ -51,13 +62,16 @@ function ProblemDetail({ problem, onBack, user }) {
                 headers: {
                 'Content-Type': 'application/json',
                 },
-                // The body of the request contains the code and problemId
-                body: JSON.stringify({ code, problemId: problem.id, userId: user.uid }),
+                // Send the selected language to the backend
+                body: JSON.stringify({ code, language, problemId: problem.id, userId: user.uid }),
             });
 
             // Get the result from the backend's response
             const data = await response.json();
             setResult(data);
+            if (data.success) {
+                // (Optional but good UX) You could re-fetch submissions here
+            }
         } catch (error) {
             console.error("Error submitting code:", error);
             setResult({ success: false, message: "Failed to connect to the server." });
@@ -80,8 +94,14 @@ function ProblemDetail({ problem, onBack, user }) {
                 {/* Left side: Problem Description and new submission history*/}
                 <div className="space-y-8">
                     <div className="bg-white p-6 rounded-lg shadow">
-                        <h2 className="text-2xl font-bold text-gray-900 mb-2">{problem.title}</h2>
-                        <p className="text-gray-700 mb-4">{problem.description}</p>
+                        <h2 className="text-2xl font-bold text-gray-900 mb-2">{`${problem.order}. ${problem.title}`}</h2>
+                        {/* 2. Use the ReactMarkdown component here */}
+                        {/* The `prose` class from the typography plugin styles the output */}
+                        <div className="prose max-w-none">
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                            {problem.description}
+                        </ReactMarkdown>
+                        </div>
                     </div>
 
                     {/* Submission History Section */}
@@ -107,15 +127,37 @@ function ProblemDetail({ problem, onBack, user }) {
                 </div>
                     {/* Right side: Code Editor */}
                     <div className="bg-white p-6 rounded-lg shadow">
-                        <h3 className="text-lg font-semibold mb-3">Solution</h3>
-                        <CodeEditor value={code} onChange={setCode} />
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-lg font-semibold">Solution</h3>
+                            {/* Language Selector Dropdown */}
+                            <select
+                            value={language}
+                            onChange={(e) => handleLanguageChange(e.target.value)}
+                            className="px-3 py-1 border border-gray-300 rounded-md shadow-sm"
+                            >
+                            <option value="javascript">JavaScript</option>
+                            <option value="python">Python</option>
+                            <option value="cpp">C++</option>
+                            </select>
+                        </div>
+
+                        <CodeEditor value={code} onChange={setCode} language={language} />
                         {/* Corrected container div */}
                         <div className="mt-4 flex items-center justify-between">
                         <div className="w-2/5"> {/* This container will hold the result message */}
                             {result && (
-                            <div className={`font-semibold ${getResultClass(result.success)}`}>
-                                {result.message}
-                            </div>
+                                <div>
+                                    <div className={`font-semibold ${getResultClass(result.success)}`}>
+                                        {result.message}
+                                    </div>
+                                    {/* NEW: Display the details if they exist */}
+                                    {result.details && (
+                                    <pre className="mt-2 p-2 bg-gray-100 rounded text-xs text-gray-700 whitespace-pre-wrap">
+                                        <code>{result.details}</code>
+                                    </pre>
+                                    )}
+                                </div>
+                            
                             )}
                         </div>
 

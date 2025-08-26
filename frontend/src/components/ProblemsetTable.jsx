@@ -53,7 +53,7 @@ function ProblemsetTable( { problems, onProblemSelect } ) {
                         e.preventDefault(); // Prevents the page from reloading
                         onProblemSelect(problem); // call this function from the parent (App.jsx)
                       }}
-                      className="hover:text-indigo-600">{problem.title}</a>
+                      className="hover:text-indigo-600">{`${problem.order}. ${problem.title}`}</a>
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{problem.acceptance}</td>

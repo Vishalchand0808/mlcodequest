@@ -4,84 +4,89 @@ import Navbar from "./components/Navbar.jsx"
 import ProblemsetTable from "./components/ProblemsetTable.jsx";
 import ProblemDetail from "./components/ProblemDetail.jsx";
 import AuthPage from "./components/AuthPage.jsx"
-import { auth } from "./firebase.js";
+import { auth, db } from "./firebase.js";
 import { onAuthStateChanged } from "firebase/auth";
+import { doc, getDoc } from "firebase/firestore";
+import AdminPage from "./components/AdminPage.jsx";
 
 function App() {
-  // Initialize problem state with an empty array.
   const [problems, setProblems] = useState([]);
-  // Create state to track the selected problem.
-  // Initially, it's `null` because no problem is selected.
   const [selectedProblem, setSelectedProblem] = useState(null);
+  const [currentUser, setCurrentUser] = useState(null);
 
-  const [currentUser, setCurrentUser] = useState(null); // State for the logged-in user
-  const [loading, setLoading] = useState(true); // Add a loading state to prevent flicker on load
+  const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState("problems");
 
-  // useEffect hook to fetch data from the backend
-  useEffect( () => {
-    // This function will run once when the component first loads
-    const fetchProblems = async () => {
-      try {
-        // We use fetch to make a GET request to our backend API
-        const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/problems`);
-        // we convert the response into JSON format.
-        const data = await response.json();
-        // We update our 'problems' state with the data from the server
-        setProblems(data);
-      } catch (error) {
-        console.error("Failed to fetch problems: ", error);
-      }
-    };
+  // 1. Define fetchProblems here, in the main scope of the App component
+  const fetchProblems = async () => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/problems`);
+      const data = await response.json();
+      setProblems(data);
+    } catch (error) {
+      console.error("Failed to fetch problems: ", error);
+    }
+  };
 
+  // 2. This useEffect calls the function when the component first loads.
+  useEffect(() => {
     fetchProblems();
-  }, []); // The empty array [] means this effect runs only once on mount
-
+  }, []);
 
   // useEffect for listening to auth state changes
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setCurrentUser(user); // Set user to the logged-in user object or null
-      setLoading(false); // We're done loading, so hide the loading indicator
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      console.log("Auth state changed. User:", user);
+      if (user) {
+        const userDocRef = doc(db, "users", user.uid);
+        const userDoc = await getDoc(userDocRef);
+        console.log("Firestore document exists:", userDoc.exists());
+        if (userDoc.exists()) {
+          setCurrentUser({
+            auth: user,
+            profile: userDoc.data()
+          });
+        } else {
+          setCurrentUser({ auth: user, profile: null });
+        }
+      } else {
+        setCurrentUser(null);
+      }
+      setLoading(false);
     });
-
-    // Cleanup subscription on unmount
     return () => unsubscribe();
   }, []);
 
-  // This function takes a problem object and updates the state.
   const handleSelectProblem = (problem) => {
     setSelectedProblem(problem);
   };
 
-  // This function clears the selection, taking us back to the list
   const handleBackToList = () => {
     setSelectedProblem(null);
   }
 
-  // Render content based on currentPage
   const renderContent = () => {
-    // If the user is not logged in, always show the AuthPage
     if (!currentUser) {
       return <AuthPage />;
     }
-
-    // If the user is logged in, show problems or details.
+    if (currentPage === 'admin' && currentUser.profile?.role === 'admin') {
+      // 3. Now this line works because renderContent can "see" fetchProblems
+      return <AdminPage user={currentUser} onNavigate={setCurrentPage} onProblemAdded={fetchProblems} />;
+    }
     if (selectedProblem) {
-      return <ProblemDetail problem={selectedProblem} onBack={handleBackToList} user={currentUser} />;
+      return <ProblemDetail problem={selectedProblem} onBack={handleBackToList} user={currentUser.auth} />;
     } else {
       return <ProblemsetTable problems={problems} onProblemSelect={handleSelectProblem} />;
     }
   };
 
-  // Show a simple loading message while checking auth state
   if (loading) {
     return <div>Loading...</div>
   }
 
   return (
     <div className='bg-gray-50 min-h-screen'>
-      {/* We only need to pass the user to the navbar now */}
-      <Navbar user={currentUser} />
+      <Navbar user={currentUser} onNavigate={setCurrentPage} />
       <main>
         {renderContent()}
       </main>
@@ -89,4 +94,4 @@ function App() {
   )
 }
 
-export default App
+export default App;

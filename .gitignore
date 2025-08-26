@@ -24,3 +24,5 @@ pnpm-debug.log*
 
 # Firebase Admin SDK Key
 /backend/serviceAccountKey.json
+
+/backend/.env

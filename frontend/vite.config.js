@@ -1,18 +1,17 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
-// https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [react()],
+  // 2. Add the plugin to your plugins array
+  plugins: [
+    react()
+  ],
   server: {
-    host: true, // This makes the server accessible externally
-    hmr: {
-        host: 'localhost',
-    },
-    watch: {
-      usePolling: true
-    },
-    // Add this to allow your ngrok host
-    allowedHosts: ['duckling-summary-adversely.ngrok-free.app'],
+    host: true,
+    allowedHosts: [
+      // ngrok domain
+      '.ngrok-free.app', 
+      'duckling-summary-adversely.ngrok-free.app'
+    ],
   }
 })
