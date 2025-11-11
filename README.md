@@ -54,12 +54,9 @@ This project was built with a modern, full-stack architecture, leveraging powerf
 * *The problem detail page, showing the Markdown rendering and the code editor.*
 * *The admin panel form for adding a new problem.*
 
-`![Problem List]([<img width="1919" height="868" alt="image" src="https://github.com/user-attachments/assets/9623a6a5-6df2-4a8f-9a8b-82dd71172a91" />
-])`
-`![Problem Detail]([<img width="1894" height="807" alt="image" src="https://github.com/user-attachments/assets/ae25ff29-1419-43f5-acda-55e681d80568" />
-])`
-`![Admin Panel]([<img width="1234" height="741" alt="image" src="https://github.com/user-attachments/assets/c07e8849-7476-46cb-a71c-b92972c9b475" />
-])`
+`![Problem List](https://github.com/user-attachments/assets/9623a6a5-6df2-4a8f-9a8b-82dd71172a91)`
+`![Problem Detail](https://github.com/user-attachments/assets/ae25ff29-1419-43f5-acda-55e681d80568)`
+`![Admin Panel](https://github.com/user-attachments/assets/c07e8849-7476-46cb-a71c-b92972c9b475)`
 
 ---
 
