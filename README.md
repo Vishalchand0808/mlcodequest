@@ -2,7 +2,7 @@
 
 MLCodeQuest is a feature-rich, full-stack web application designed for the modern data professional. Moving beyond traditional DSA-focused platforms, MLCodeQuest provides a dedicated space for users to practice and solve coding challenges in Machine Learning, Deep Learning, Data Science, and AI. It allows users to sign up, tackle complex problems in multiple languages, and receive instant feedback on their solutions. The project includes a complete admin panel for seamless content management.
 
-**Live Demo:** [**[YOUR_LIVE_DEMO_URL]**]([YOUR_LIVE_DEMO_URL])
+**Live Demo:** [**mlcodequest.vercel.app**](https://mlcodequest.vercel.app/)
 
 ---
 
@@ -54,9 +54,12 @@ This project was built with a modern, full-stack architecture, leveraging powerf
 * *The problem detail page, showing the Markdown rendering and the code editor.*
 * *The admin panel form for adding a new problem.*
 
-`![Problem List]([URL_TO_SCREENSHOT])`
-`![Problem Detail]([URL_TO_SCREENSHOT])`
-`![Admin Panel]([URL_TO_SCREENSHOT])`
+`![Problem List]([<img width="1919" height="868" alt="image" src="https://github.com/user-attachments/assets/9623a6a5-6df2-4a8f-9a8b-82dd71172a91" />
+])`
+`![Problem Detail]([<img width="1894" height="807" alt="image" src="https://github.com/user-attachments/assets/ae25ff29-1419-43f5-acda-55e681d80568" />
+])`
+`![Admin Panel]([<img width="1234" height="741" alt="image" src="https://github.com/user-attachments/assets/c07e8849-7476-46cb-a71c-b92972c9b475" />
+])`
 
 ---
 
